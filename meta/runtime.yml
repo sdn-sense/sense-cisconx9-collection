@@ -1,0 +1,9 @@
+plugin_routing:
+  action:
+    cisconx9_config:
+      redirect: sense.cisconx9.cisconx9
+    cisconx9_command:
+      redirect: sense.cisconx9.cisconx9
+    cisconx9_facts:
+      redirect: sense.cisconx9.cisconx9
+

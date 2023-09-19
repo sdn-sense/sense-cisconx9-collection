@@ -1,0 +1,15 @@
+namespace: sense
+name: cisconx9
+version: 1.0.0
+readme: README.md
+authors:
+- Justas Balcas <juztas@gmail.com>
+description: Ansible Network Collections for Cisco Nexus 9
+license_file: LICENCE
+tags: [Cisco, Nexus, ciscoNX9, networking]
+dependencies:
+  ansible.netcommon: '>=1.0.0'
+repository: https://github.com/sdn-sense/sense-cisconx9-collection
+documentation: https://github.com/sdn-sense/sense-cisconx9-collection
+homepage: https://github.com/sdn-sense/sense-cisconx9-collection
+issues: https://github.com/sdn-sense/sense-cisconx9-collection
