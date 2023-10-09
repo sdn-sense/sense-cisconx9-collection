@@ -3,11 +3,14 @@
 
 # Copyright: Contributors to the Ansible project
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+import traceback
+from ansible.utils.display import Display
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.six import iteritems
 from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import run_commands
 from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import cisconx9_argument_spec, check_args
 
+display = Display()
 
 class FactsBase:
     """Base class for Facts"""
@@ -243,8 +246,11 @@ def main():
 
     for inst in instances:
         if inst:
-            inst.populate()
-            facts.update(inst.facts)
+            try:
+                inst.populate()
+                facts.update(inst.facts)
+            except Exception:
+                display.vvv(traceback.format_exc())
 
     ansible_facts = {}
     for key, value in iteritems(facts):

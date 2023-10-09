@@ -3,6 +3,7 @@
 
 # Copyright: Contributors to the Ansible project
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+import json
 from ansible.module_utils._text import to_text
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.connection import exec_command
@@ -30,6 +31,12 @@ cisconx9_argument_spec = {
     'provider': {'type': 'dict', 'options': cisconx9_provider_spec}
 }
 
+def to_json(out):
+    """Check and change output to dict if possible"""
+    try:
+        return json.loads(out)
+    except ValueError:
+        return out
 
 def check_args(module, warnings):
     """Check args pass"""
@@ -73,7 +80,7 @@ def run_commands(module, commands, check_rc=True):
         ret, out, err = exec_command(module, cmd)
         if check_rc and ret != 0:
             module.fail_json(msg=to_text(err, errors='surrogate_or_strict'), rc=ret)
-        responses.append(to_text(out, errors='surrogate_or_strict'))
+        responses.append(to_json(to_text(out, errors='surrogate_or_strict')))
     return responses
 
 
