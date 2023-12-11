@@ -251,6 +251,7 @@ def main():
                 facts.update(inst.facts)
             except Exception:
                 display.vvv(traceback.format_exc())
+                raise Exception(traceback.format_exc())
 
     ansible_facts = {}
     for key, value in iteritems(facts):
