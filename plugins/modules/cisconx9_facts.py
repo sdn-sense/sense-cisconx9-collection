@@ -182,6 +182,8 @@ class Routing(FactsBase):
         self.facts.setdefault(resptype, [])
         for intdict in self.responses[respid].get('TABLE_vrf', {}).get('ROW_vrf', []):
             for routeEntry in intdict.get('TABLE_addrf', {}).get('ROW_addrf').get('TABLE_prefix', {}).get('ROW_prefix', []):
+                if not isinstance(routeEntry, dict):
+                    continue
                 tmpdict = {'vrf': intdict['vrf-name-out']}
                 if 'ipprefix' in routeEntry:
                     tmpdict['to'] = routeEntry['ipprefix']
