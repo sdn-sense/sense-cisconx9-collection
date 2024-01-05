@@ -107,6 +107,10 @@ class Interfaces(FactsBase):
             intout['bandwidth'] = int(int(intdict['eth_bw']) / 1000)
         if 'eth_mtu' in intdict:
             intout['mtu'] = intdict['eth_mtu']
+        if 'eth_mode' in intdict and intdict['eth_mode'] == 'trunk':
+            intout['switchport'] = 'yes'
+        else:
+            intout['switchport'] = 'no'
 
     def populate_lldp(self):
         lldpdict = self.facts.setdefault('lldp', {})
