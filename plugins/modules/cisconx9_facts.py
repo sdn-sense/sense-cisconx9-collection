@@ -76,11 +76,13 @@ class Interfaces(FactsBase):
 
     @staticmethod
     def macSplitter(inputmac):
+        """Split mac address (by .) into separated format and rejoin to :."""
         macaddr = inputmac.strip().replace(".", "")
         split_mac = [macaddr[index : index + 2] for index in range(0, len(macaddr), 2)]
         return ":".join(split_mac)
 
     def populate_vlan(self, intdict, intout):
+        """Populate vlan output information"""
         if "svi_line_proto" in intdict:
             intout["operstatus"] = intdict["svi_line_proto"]
         if "svi_bw" in intdict:
@@ -126,6 +128,7 @@ class Interfaces(FactsBase):
             intout["switchport"] = "no"
 
     def populate_lldp(self):
+        """Populate lldp information"""
         lldpdict = self.facts.setdefault("lldp", {})
         for intdict in (
             self.responses[3].get("TABLE_nbor_detail", {}).get("ROW_nbor_detail", [])
@@ -207,6 +210,7 @@ class Routing(FactsBase):
     COMMANDS = ["show ip route vrf all | json", "show ipv6 route vrf all | json"]
 
     def populate_ip46(self, respid, resptype):
+        """Populate IP routing information"""
         self.facts.setdefault(resptype, [])
         for intdict in self.responses[respid].get("TABLE_vrf", {}).get("ROW_vrf", []):
             for routeEntry in (
@@ -222,17 +226,26 @@ class Routing(FactsBase):
                     tmpdict["to"] = routeEntry["ipprefix"]
                 rfrom = (
                     routeEntry.get("TABLE_path", {})
-                    .get("ROW_path", {})
-                    .get("ipnexthop", None)
-                )
-                if rfrom:
-                    tmpdict["from"] = rfrom
-                self.facts[resptype].append(tmpdict)
+                    .get("ROW_path", {}))
+                if isinstance(rfrom, list):
+                    for entry in rfrom:
+                        if entry.get("ipnexthop", None):
+                            tmpdict["from"] = entry.get("ipnexthop")
+                        self.facts[resptype].append(tmpdict)
+                elif rfrom.get("ipnexthop", None):
+                    tmpdict["from"] = rfrom.get("ipnexthop")
+                    self.facts[resptype].append(tmpdict)
 
     def populate(self):
         super(Routing, self).populate()
-        self.populate_ip46(0, "ipv4")
-        self.populate_ip46(1, "ipv6")
+        try:
+            self.populate_ip46(0, "ipv4")
+        except Exception:
+            pass
+        try:
+            self.populate_ip46(1, "ipv6")
+        except Exception:
+            pass
 
 
 FACT_SUBSETS = {
@@ -289,13 +302,13 @@ def main():
             try:
                 inst.populate()
                 facts.update(inst.facts)
-            except Exception:
+            except Exception as ex:
                 display.vvv(traceback.format_exc())
-                raise Exception(traceback.format_exc())
+                raise Exception(traceback.format_exc()) from ex
 
     ansible_facts = {}
     for key, value in iteritems(facts):
-        key = "ansible_net_%s" % key
+        key = f"ansible_net_{key}"
         ansible_facts[key] = value
 
     warnings = []
