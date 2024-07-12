@@ -20,11 +20,11 @@ from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 im
 from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import cisconx9_argument_spec, check_args
 from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import load_config, run_commands
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.config import NetworkConfig, dumps
-
+from ansible_collections.sense.cisconx9.plugins.module_utils.runwrapper import functionwrapper
 
 display = Display()
 
-
+@functionwrapper
 def get_candidate(module):
     candidate = NetworkConfig(indent=1)
     if module.params['src']:
@@ -41,6 +41,7 @@ def get_candidate(module):
     return candidate
 
 
+@functionwrapper
 def get_running_config(module):
     contents = module.params['config']
     if not contents:
@@ -48,6 +49,7 @@ def get_running_config(module):
     return contents
 
 
+@functionwrapper
 def main():
     backup_spec = dict(
         filename=dict(),

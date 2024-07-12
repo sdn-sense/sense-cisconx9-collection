@@ -10,10 +10,12 @@ from ansible.module_utils.six import iteritems
 from ansible.utils.display import Display
 from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import (
     check_args, cisconx9_argument_spec, run_commands)
+from ansible_collections.sense.cisconx9.plugins.module_utils.runwrapper import classwrapper, functionwrapper
 
 display = Display()
 
 
+@classwrapper
 class FactsBase:
     """Base class for Facts"""
 
@@ -32,7 +34,7 @@ class FactsBase:
         """Run commands"""
         return run_commands(self.module, cmd, check_rc=False)
 
-
+@classwrapper
 class Default(FactsBase):
     """Default Class to get basic info"""
 
@@ -52,6 +54,7 @@ class Default(FactsBase):
                 self.facts[outkey] = data[key]
 
 
+@classwrapper
 class Config(FactsBase):
     """Default Class to get basic info"""
 
@@ -64,6 +67,7 @@ class Config(FactsBase):
         self.facts["config"] = self.responses[0]
 
 
+@classwrapper
 class Interfaces(FactsBase):
     """All Interfaces Class"""
 
@@ -204,6 +208,7 @@ class Interfaces(FactsBase):
         self.populate_lldp()
 
 
+@classwrapper
 class Routing(FactsBase):
     """Routing Information Class"""
 
@@ -257,7 +262,7 @@ FACT_SUBSETS = {
 
 VALID_SUBSETS = frozenset(FACT_SUBSETS.keys())
 
-
+@functionwrapper
 def main():
     """main entry point for module execution"""
     argument_spec = {"gather_subset": {"default": ["!config"], "type": "list"}}

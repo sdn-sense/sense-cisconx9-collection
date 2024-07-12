@@ -12,16 +12,18 @@ from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 im
 from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import cisconx9_argument_spec, check_args
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import ComplexList
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.parsing import Conditional
+from ansible_collections.sense.cisconx9.plugins.module_utils.runwrapper import functionwrapper
 
 display = Display()
 
+@functionwrapper
 def toLines(stdout):
     for item in stdout:
         if isinstance(item, string_types):
             item = str(item).split('\n')
         yield item
 
-
+@functionwrapper
 def parse_commands(module, warnings):
     command = ComplexList({'command': {'key':True}, 'prompt': {}, 'answer':{}}, module)
     commands = command(module.params['commands'])
@@ -32,7 +34,7 @@ def parse_commands(module, warnings):
             module.fail_json(msg='cisconx9_command does not support running config mode commands.  Please use cisconx9_config instead')
     return commands
 
-
+@functionwrapper
 def main():
     """main entry point for module execution
     """

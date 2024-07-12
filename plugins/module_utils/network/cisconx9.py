@@ -9,6 +9,7 @@ from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.connection import exec_command
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import to_list, ComplexList
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.config import NetworkConfig, ConfigLine
+from ansible_collections.sense.cisconx9.plugins.module_utils.runwrapper import functionwrapper
 
 _DEVICE_CONFIGS = {}
 
@@ -31,6 +32,7 @@ cisconx9_argument_spec = {
     'provider': {'type': 'dict', 'options': cisconx9_provider_spec}
 }
 
+@functionwrapper
 def to_json(out):
     """Check and change output to dict if possible"""
     try:
@@ -38,10 +40,12 @@ def to_json(out):
     except ValueError:
         return out
 
+@functionwrapper
 def check_args(module, warnings):
     """Check args pass"""
     pass
 
+@functionwrapper
 def get_config(module, flags=None):
     """Get running config"""
     flags = [] if flags is None else flags
@@ -59,7 +63,7 @@ def get_config(module, flags=None):
         _DEVICE_CONFIGS[cmd] = cfg
         return cfg
 
-
+@functionwrapper
 def to_commands(module, commands):
     """Transform commands"""
     spec = {
@@ -70,7 +74,7 @@ def to_commands(module, commands):
     transform = ComplexList(spec, module)
     return transform(commands)
 
-
+@functionwrapper
 def run_commands(module, commands, check_rc=True):
     """Run Commands"""
     responses = []
@@ -83,7 +87,7 @@ def run_commands(module, commands, check_rc=True):
         responses.append(to_json(to_text(out, errors='surrogate_or_strict')))
     return responses
 
-
+@functionwrapper
 def load_config(module, commands):
     """Load config"""
     ret, _out, err = exec_command(module, 'configure terminal')
@@ -99,7 +103,7 @@ def load_config(module, commands):
 
     exec_command(module, 'end')
 
-
+@functionwrapper
 def get_sublevel_config(running_config, module):
     """Get sublevel config"""
     contents = []

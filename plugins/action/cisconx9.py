@@ -13,10 +13,12 @@ from ansible.module_utils.connection import Connection
 from ansible_collections.ansible.netcommon.plugins.action.network import ActionModule as ActionNetworkModule
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import load_provider
 from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import cisconx9_provider_spec
+from ansible_collections.sense.cisconx9.plugins.module_utils.runwrapper import classwrapper
+
 
 display = Display()
 
-
+@classwrapper
 class ActionModule(ActionNetworkModule):
     """ Ansible Action Module"""
 
