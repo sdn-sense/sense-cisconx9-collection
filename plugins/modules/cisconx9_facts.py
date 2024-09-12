@@ -85,6 +85,23 @@ class Interfaces(FactsBase):
         split_mac = [macaddr[index : index + 2] for index in range(0, len(macaddr), 2)]
         return ":".join(split_mac)
 
+
+    @staticmethod
+    def _validate(indata, keys):
+        """Validate response and preset default values"""
+        tmpval = indata
+        for key, keytype, default in keys:
+            if key not in tmpval:
+                display.vvv(f"Key not found: {key} in {indata}")
+                tmpval[key] = default
+            if not isinstance(tmpval[key], keytype):
+                display.vvv(f"Key {key} is not of type {keytype} in {indata}")
+                tmpval[key] = default
+            tmpval = tmpval[key]
+        return indata
+
+
+
     def populate_vlan(self, intdict, intout):
         """Populate vlan output information"""
         if "svi_line_proto" in intdict:
@@ -134,6 +151,7 @@ class Interfaces(FactsBase):
     def populate_lldp(self):
         """Populate lldp information"""
         lldpdict = self.facts.setdefault("lldp", {})
+        self.responses[3] = self._validate(self.responses[3], [["TABLE_nbor_detail", dict, {}], ["ROW_nbor_detail", list, []]])
         for intdict in (
             self.responses[3].get("TABLE_nbor_detail", {}).get("ROW_nbor_detail", [])
         ):
@@ -157,7 +175,7 @@ class Interfaces(FactsBase):
 
         self.facts.setdefault("interfaces", {})
         self.facts.setdefault("info", {"macs": []})
-
+        self.responses[0] =self._validate(self.responses[0], [["TABLE_interface", dict, {}], ["ROW_interface", list, []]])
         for intdict in (
             self.responses[0].get("TABLE_interface", {}).get("ROW_interface", [])
         ):
@@ -170,6 +188,7 @@ class Interfaces(FactsBase):
             else:
                 self.populate_eth(intdict, intout)
 
+        self.responses[1] = self._validate(self.responses[1], [["TABLE_vlanbrief", dict, {}], ["ROW_vlanbrief", list, []]])
         for intdict in (
             self.responses[1].get("TABLE_vlanbrief", {}).get("ROW_vlanbrief", [])
         ):
@@ -184,6 +203,7 @@ class Interfaces(FactsBase):
                 vlanout.setdefault("tagged", intdict["vlanshowplist-ifidx"].split(","))
         # IPv6s (for IPv4 it is available from interfaces output)
         # show ipv6 interface vrf all | json,
+        self.responses[2] = self._validate(self.responses[2], [["TABLE_intf", dict, {}], ["ROW_intf", list, []]])
         for intdict in self.responses[2].get("TABLE_intf", {}).get("ROW_intf", []):
             intout = self.facts["interfaces"].setdefault(intdict["intf-name"], {})
             tmpips = intdict.get("TABLE_addr", {}).get("ROW_addr", [])
