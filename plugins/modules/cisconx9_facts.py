@@ -89,7 +89,7 @@ class Interfaces(FactsBase):
     @staticmethod
     def _validate(indata, keys):
         """Validate response and preset default values"""
-        if isinstance(indata, dict):
+        if not isinstance(indata, dict):
             display.vvv(f"Data is not a dictionary: {indata}. Rewrite as dict")
             indata = {}
         tmpval = indata
