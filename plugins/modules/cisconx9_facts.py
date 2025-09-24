@@ -8,11 +8,40 @@ import traceback
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.six import iteritems
 from ansible.utils.display import Display
-from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import (
-    check_args, cisconx9_argument_spec, run_commands)
+from ansible_collections.sense.cisconx9.plugins.module_utils.network.cisconx9 import (check_args, cisconx9_argument_spec, run_commands)
 from ansible_collections.sense.cisconx9.plugins.module_utils.runwrapper import classwrapper, functionwrapper
 
 display = Display()
+
+
+@functionwrapper
+def findvlanranges(vlanstr):
+    """Find vlan ranges"""
+    out = []
+    if not vlanstr:
+        return out
+    if vlanstr in ["1-4094", "none"]:
+        # "none" - means no vlans allowed
+        # "1-4094" - this is mistake on device. Need to have switchport trunk allowed vlan none
+        return []  # For now lets ignore all and NONE, as no vlans.
+    for part in vlanstr.split(","):
+        if "-" in part:
+            start, end = part.split("-")
+            try:
+                start = int(start)
+                end = int(end)
+                if start > end:
+                    continue
+                for vlan in range(start, end + 1):
+                    out.append(vlan)
+            except Exception:
+                continue
+        else:
+            try:
+                out.append(int(part))
+            except Exception:
+                continue
+    return out
 
 
 @classwrapper
@@ -33,6 +62,7 @@ class FactsBase:
     def run(self, cmd):
         """Run commands"""
         return run_commands(self.module, cmd, check_rc=False)
+
 
 @classwrapper
 class Default(FactsBase):
@@ -71,12 +101,7 @@ class Config(FactsBase):
 class Interfaces(FactsBase):
     """All Interfaces Class"""
 
-    COMMANDS = [
-        "show interface | json",
-        "show vlan | json",
-        "show ipv6 interface vrf all | json",
-        "show lldp neighbors detail | json",
-    ]
+    COMMANDS = ["show interface | json", "show vlan | json", "show ipv6 interface vrf all | json", "show lldp neighbors detail | json", "show interface switchport | json"]
 
     @staticmethod
     def macSplitter(inputmac):
@@ -84,7 +109,6 @@ class Interfaces(FactsBase):
         macaddr = inputmac.strip().replace(".", "")
         split_mac = [macaddr[index : index + 2] for index in range(0, len(macaddr), 2)]
         return ":".join(split_mac)
-
 
     @staticmethod
     def _validate(indata, keys):
@@ -103,8 +127,6 @@ class Interfaces(FactsBase):
             tmpval = tmpval[key]
         return indata
 
-
-
     def populate_vlan(self, intdict, intout):
         """Populate vlan output information"""
         if "svi_line_proto" in intdict:
@@ -113,9 +135,7 @@ class Interfaces(FactsBase):
             intout["bandwidth"] = int(int(intdict["svi_bw"]) / 1000)
         if "svi_ip_addr" in intdict and "svi_ip_mask" in intdict:
             intout.setdefault("ipv4", [])
-            intout["ipv4"].append(
-                {"address": intdict["svi_ip_addr"], "masklen": intdict["svi_ip_mask"]}
-            )
+            intout["ipv4"].append({"address": intdict["svi_ip_addr"], "masklen": intdict["svi_ip_mask"]})
         if "svi_mac" in intdict:
             newmac = self.macSplitter(intdict["svi_mac"])
             intout["mac"] = newmac
@@ -139,9 +159,7 @@ class Interfaces(FactsBase):
             intout["description"] = intdict["desc"]
         if "eth_ip_addr" in intdict and "eth_ip_mask" in intdict:
             intout.setdefault("ipv4", [])
-            intout["ipv4"].append(
-                {"address": intdict["eth_ip_addr"], "masklen": intdict["eth_ip_mask"]}
-            )
+            intout["ipv4"].append({"address": intdict["eth_ip_addr"], "masklen": intdict["eth_ip_mask"]})
         if "eth_bw" in intdict:
             intout["bandwidth"] = int(int(intdict["eth_bw"]) / 1000)
         if "eth_mtu" in intdict:
@@ -155,14 +173,10 @@ class Interfaces(FactsBase):
         """Populate lldp information"""
         lldpdict = self.facts.setdefault("lldp", {})
         self.responses[3] = self._validate(self.responses[3], [["TABLE_nbor_detail", dict, {}], ["ROW_nbor_detail", list, []]])
-        for intdict in (
-            self.responses[3].get("TABLE_nbor_detail", {}).get("ROW_nbor_detail", [])
-        ):
+        for intdict in self.responses[3].get("TABLE_nbor_detail", {}).get("ROW_nbor_detail", []):
             tmpdict = {}
             if "l_port_id" in intdict:
-                tmpdict["local_port_id"] = intdict["l_port_id"].replace(
-                    "Eth", "Ethernet"
-                )
+                tmpdict["local_port_id"] = intdict["l_port_id"].replace("Eth", "Ethernet")
             if "port_id" in intdict:
                 newmac = self.macSplitter(intdict["port_id"])
                 tmpdict["remote_chassis_id"] = newmac
@@ -173,15 +187,29 @@ class Interfaces(FactsBase):
             if tmpdict["local_port_id"]:
                 lldpdict[tmpdict["local_port_id"]] = tmpdict
 
+    def recordSwitchPortVlans(self):
+        """Record switchport vlans"""
+        for item in self.responses[4].get("TABLE_interface", {}).get("ROW_interface", []):
+            if "interface" not in item:
+                continue
+            vlanrange = findvlanranges(item.get("trunk_vlans", "none"))
+            for vlan in vlanrange:
+                vlanName = f"Vlan{vlan}"
+                if vlanName not in self.facts["interfaces"]:
+                    self.facts["interfaces"].setdefault(
+                        vlanName, {"bandwidth": None, "duplex": None, "lineprotocol": None, "macaddress": None, "description": None, "mtu": None, "operstatus": None, "channel-member": None}
+                    )
+                self.facts["interfaces"][vlanName].setdefault("tagged", [])
+                if item["interface"] not in self.facts["interfaces"][vlanName]["tagged"]:
+                    self.facts["interfaces"][vlanName]["tagged"].append(item["interface"])
+
     def populate(self):
         super(Interfaces, self).populate()
 
         self.facts.setdefault("interfaces", {})
         self.facts.setdefault("info", {"macs": []})
-        self.responses[0] =self._validate(self.responses[0], [["TABLE_interface", dict, {}], ["ROW_interface", list, []]])
-        for intdict in (
-            self.responses[0].get("TABLE_interface", {}).get("ROW_interface", [])
-        ):
+        self.responses[0] = self._validate(self.responses[0], [["TABLE_interface", dict, {}], ["ROW_interface", list, []]])
+        for intdict in self.responses[0].get("TABLE_interface", {}).get("ROW_interface", []):
             # interface name
             if "interface" not in intdict:
                 continue
@@ -192,9 +220,7 @@ class Interfaces(FactsBase):
                 self.populate_eth(intdict, intout)
 
         self.responses[1] = self._validate(self.responses[1], [["TABLE_vlanbrief", dict, {}], ["ROW_vlanbrief", list, []]])
-        for intdict in (
-            self.responses[1].get("TABLE_vlanbrief", {}).get("ROW_vlanbrief", [])
-        ):
+        for intdict in self.responses[1].get("TABLE_vlanbrief", {}).get("ROW_vlanbrief", []):
             intf = f"Vlan{intdict['vlanshowbr-vlanid']}"
             vlanout = self.facts["interfaces"].setdefault(intf, {})
             vlanout["description"] = intdict["vlanshowbr-vlanname"]
@@ -214,21 +240,18 @@ class Interfaces(FactsBase):
                 for addr in intdict.get("TABLE_addr", {}).get("ROW_addr", []):
                     ipv6spl = addr["addr"].split("/")
                     intout.setdefault("ipv6", [])
-                    intout["ipv6"].append(
-                        {"address": ipv6spl[0], "masklen": ipv6spl[1]}
-                    )
+                    intout["ipv6"].append({"address": ipv6spl[0], "masklen": ipv6spl[1]})
             else:
-                tmpipv6 = (
-                    intdict.get("TABLE_addr", {}).get("ROW_addr", []).get("addr", None)
-                )
+                tmpipv6 = intdict.get("TABLE_addr", {}).get("ROW_addr", []).get("addr", None)
                 if tmpipv6:
                     ipv6spl = tmpipv6.split("/")
                     intout.setdefault("ipv6", [])
-                    intout["ipv6"].append(
-                        {"address": ipv6spl[0], "masklen": ipv6spl[1]}
-                    )
+                    intout["ipv6"].append({"address": ipv6spl[0], "masklen": ipv6spl[1]})
         # Populate lldp information
         self.populate_lldp()
+        # Populate switchport information and vlans
+        self.responses[4] = self._validate(self.responses[4], [["TABLE_interface", dict, {}], ["ROW_interface", list, []]])
+        self.recordSwitchPortVlans()
 
 
 @classwrapper
@@ -241,20 +264,13 @@ class Routing(FactsBase):
         """Populate IP routing information"""
         self.facts.setdefault(resptype, [])
         for intdict in self.responses[respid].get("TABLE_vrf", {}).get("ROW_vrf", []):
-            for routeEntry in (
-                intdict.get("TABLE_addrf", {})
-                .get("ROW_addrf")
-                .get("TABLE_prefix", {})
-                .get("ROW_prefix", [])
-            ):
+            for routeEntry in intdict.get("TABLE_addrf", {}).get("ROW_addrf").get("TABLE_prefix", {}).get("ROW_prefix", []):
                 if not isinstance(routeEntry, dict):
                     continue
                 tmpdict = {"vrf": intdict["vrf-name-out"]}
                 if "ipprefix" in routeEntry:
                     tmpdict["to"] = routeEntry["ipprefix"]
-                rfrom = (
-                    routeEntry.get("TABLE_path", {})
-                    .get("ROW_path", {}))
+                rfrom = routeEntry.get("TABLE_path", {}).get("ROW_path", {})
                 if isinstance(rfrom, list):
                     for entry in rfrom:
                         if entry.get("ipnexthop", None):
@@ -284,6 +300,7 @@ FACT_SUBSETS = {
 }
 
 VALID_SUBSETS = frozenset(FACT_SUBSETS.keys())
+
 
 @functionwrapper
 def main():
