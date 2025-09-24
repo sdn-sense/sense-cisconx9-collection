@@ -191,6 +191,15 @@ class Interfaces(FactsBase):
         """Record switchport vlans"""
         for item in self.responses[4].get("TABLE_interface", {}).get("ROW_interface", []):
             if "interface" not in item:
+                display.vvv(f"Interface key not found in {item}. Skipping")
+                continue
+            # If not switchport, skip
+            if self.facts["interfaces"].get(item["interface"], {}).get("switchport", "no") != "yes":
+                display.vvv(f"Interface {item['interface']} is not switchport. Skipping")
+                continue
+            # If operstatus != up, skip
+            if self.facts["interfaces"].get(item["interface"], {}).get("operstatus", "down") != "up":
+                display.vvv(f"Interface {item['interface']} is not up. Skipping")
                 continue
             vlanrange = findvlanranges(item.get("trunk_vlans", "none"))
             for vlan in vlanrange:
