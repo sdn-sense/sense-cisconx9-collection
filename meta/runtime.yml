@@ -6,4 +6,6 @@ plugin_routing:
       redirect: sense.cisconx9.cisconx9
     cisconx9_facts:
       redirect: sense.cisconx9.cisconx9
+    cisconx9_bgpsummary:
+      redirect: sense.cisconx9.cisconx9
 
