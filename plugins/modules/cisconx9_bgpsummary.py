@@ -92,12 +92,17 @@ def buildNeighborDetailCommand(vrf, iptype, peer):
 
 @functionwrapper
 def parseBgpSummaryJson(rawjson, iptype, peers):
-    """Parse one AFI's 'summary | json' response, appending normalized peers."""
-    try:
-        data = json.loads(rawjson)
-    except ValueError:
+    """Parse one AFI's 'summary | json' response, appending normalized peers
+    (run_commands() already parses JSON replies to a dict; a raw string is a
+    fallback)."""
+    if isinstance(rawjson, str):
+        try:
+            rawjson = json.loads(rawjson)
+        except ValueError:
+            return None
+    if not isinstance(rawjson, dict):
         return None
-    vrfrows = asList(data.get("TABLE_vrf", {}).get("ROW_vrf"))
+    vrfrows = asList(rawjson.get("TABLE_vrf", {}).get("ROW_vrf"))
     vrfname = None
     for vrfrow in vrfrows:
         vrfname = vrfrow.get("vrf-name-out", vrfname)
